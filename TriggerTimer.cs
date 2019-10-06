@@ -4,12 +4,14 @@ using UnityEngine;
 
 public class TriggerTimer : MonoBehaviour
 {
+    //trigger behavior
     public enum TriggerActivation {byKeypress, byCollider, onStart};
     public TriggerActivation triggerActivateBy;
     public KeyCode triggerKey;
     private bool triggeredByCollider;
     [Space(10)]
 
+    //other control keys (universally usable)
     public KeyCode stopKey;
     public KeyCode resetKey;
     [Space(10)]
@@ -19,6 +21,7 @@ public class TriggerTimer : MonoBehaviour
     private int resetCount;
     private bool isTriggered;
 
+    //time format (either in absolute values from start, or as +n from previous)
     public enum TriggerTimeFormat {absolute, additive};
     public TriggerTimeFormat timeFormat;
     [HideInInspector] public List<float> normalizedTriggerTimes;
@@ -41,7 +44,6 @@ public class TriggerTimer : MonoBehaviour
     public bool logTrigger;
     private GameObject Logger;
 
-    // Start is called before the first frame update
     void Start()
     {
         if (logTrigger)
@@ -57,14 +59,14 @@ public class TriggerTimer : MonoBehaviour
         }        
     }
 
-    // Update is called once per frame
-    void FixedUpdate()
+    void Update()
     {
-        if ((triggerActivateBy == TriggerActivation.byKeypress) &&  Input.GetKeyDown(resetKey))
+        //key controls
+        if (Input.GetKeyDown(resetKey))
         {
             resetTrigger();
         }
-        if ((triggerActivateBy == TriggerActivation.byKeypress) &&  Input.GetKeyDown(stopKey))
+        if (Input.GetKeyDown(stopKey))
         {
             stopTrigger();
         }        
@@ -72,11 +74,12 @@ public class TriggerTimer : MonoBehaviour
         {
             startTrigger();
         }
-
+        //per-update triggering (enabled and not paused)
         if (isTriggered && !isStopped)
         {
             timer += Time.deltaTime;
             int i = 0;
+            //foreach object, because they may not be in a correct order (abs. time values)
             foreach (TargetObjectLists item in TargetObjects)
             {
                 if (!item.wasTriggered && (timer >=  normalizedTriggerTimes[i]))
@@ -96,6 +99,7 @@ public class TriggerTimer : MonoBehaviour
         }
     }
 
+    //triggered on collider
     void OnTriggerEnter(Collider Col)
     {
         if ((Col.gameObject.tag == "Player") && !triggeredByCollider)
@@ -105,6 +109,7 @@ public class TriggerTimer : MonoBehaviour
         }
     }
 
+    //standard time format for tigger, be it additive/absolute values
     void normalizeTriggerTimes()
     {        
         if (timeFormat == TriggerTimeFormat.additive)
@@ -113,7 +118,6 @@ public class TriggerTimer : MonoBehaviour
             float previousTime = 0;  
             foreach (TargetObjectLists item in TargetObjects)
             {
-                Debug.Log(item.timeToTrigger + ", " + previousTime);
                 normalizedTriggerTimes.Add(TargetObjects[i].timeToTrigger + previousTime);
                 previousTime = normalizedTriggerTimes[i];
                 i++;
@@ -136,6 +140,7 @@ public class TriggerTimer : MonoBehaviour
 
     void stopTrigger()
     {
+        //Debug.Log("stopped at " + timer + ", " + isStopped);
         if (!isStopped) {
             isStopped = true;
             stopCount++;
@@ -148,10 +153,15 @@ public class TriggerTimer : MonoBehaviour
     }
 
     void resetTrigger() {
+        //Debug.Log("reset at " + timer);
         isTriggered = false;
         isStopped = false;
         triggeredByCollider = false;
         timer = 0;
+        for (int i = 0; i < TargetObjects.Length; i++)
+        {
+            TargetObjects[i].wasTriggered = false;
+        }
 
         if (triggerActivateBy == TriggerActivation.onStart)
         {
