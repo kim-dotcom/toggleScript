@@ -40,6 +40,8 @@ public class TriggerKeyActivator : MonoBehaviour {
                     (TargetObjects[triggerKeys.IndexOf(key)].toggleOnlyOnce &&
                      TargetObjects[triggerKeys.IndexOf(key)].triggerCount == 0))
                 {
+                    //account for this now, if exceptions are thrown later in the for loop
+                    TargetObjects[triggerKeys.IndexOf(key)].triggerCount++;
                     Debug.Log("Pressed " + key);
                     //on keyPress, trigeer all the objects in this key's list
                     foreach (GameObject subObject in TargetObjects[triggerKeys.IndexOf(key)].thisKeyObjects)
@@ -72,8 +74,7 @@ public class TriggerKeyActivator : MonoBehaviour {
                                                  " has no toggleScript! Trigger " + this.name + " not toggling!");
                             }
                         }
-                    }
-                    TargetObjects[triggerKeys.IndexOf(key)].triggerCount++;
+                    }                    
                 }
             }
         }

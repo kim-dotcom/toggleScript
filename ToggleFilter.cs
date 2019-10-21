@@ -6,14 +6,18 @@ public class ToggleFilter : MonoBehaviour
 {
     //iterate from zero to target value; then toggle
     public int defaultValue = 0;
-    public int targetValue = 3;
+    public int toggleValue = 3;
+    public bool toggleAfterDelay;
+    public float toggleDelay = 0;
     private int currentValue;
+    private float toggleTime;
     //control vars
     public bool resetValueOnToggle;
     public bool toggleOnlyOnce;
     private bool canToggle = true;
+    private bool canToggleInTime = false;
     //target toggle
-    public GameObject targetToggleObject;
+    public List<GameObject> TargetToggleObjects;
     public int targetControlNumber = 0;
 
     // Start is called before the first frame update
@@ -25,36 +29,51 @@ public class ToggleFilter : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-
+        if (canToggleInTime)
+        {
+            if (Time.time >= (toggleTime + toggleDelay))
+            {                
+                this.Toggle(0);
+                canToggleInTime = false;
+            }
+        }
     }
 
     public void Toggle(int controlNumber)
     {
-        if (canToggle)
+        if (toggleAfterDelay && !canToggleInTime)
+        {
+            toggleTime = Time.time;
+            canToggleInTime = true;
+        }
+        else if (canToggle)
         {
             currentValue++;
-            if (currentValue == targetValue)
+            if (currentValue == toggleValue)
             {
-                if (targetToggleObject.GetComponent<ToggleScript>() != null)
+                foreach (GameObject obj in TargetToggleObjects)
                 {
-                    //toggle the target
-                    targetToggleObject.GetComponent<ToggleScript>().Toggle(targetControlNumber);
-                    //reset the iterator counter, if wanted
-                    if (resetValueOnToggle)
+                    if (obj.GetComponent<ToggleScript>() != null)
                     {
-                        currentValue = defaultValue;
-                    }
-                    //disable the iterator, if wanted
-                    if (toggleOnlyOnce)
-                    {
-                        canToggle = false;
-                    }
+                        //toggle the target
+                        obj.GetComponent<ToggleScript>().Toggle(targetControlNumber);
+                        //reset the iterator counter, if wanted
+                        if (resetValueOnToggle)
+                        {
+                            currentValue = defaultValue;
+                        }
+                        //disable the iterator, if wanted
+                        if (toggleOnlyOnce)
+                        {
+                            canToggle = false;
+                        }
 
-                }
-                else
-                {
-                    Debug.LogWarning("Object " + targetToggleObject.name +
-                                     " has no toggleScript! Iterator " + this.name + " not toggling!");
+                    }
+                    else
+                    {
+                        Debug.LogWarning("Object " + obj.name +
+                                         " has no toggleScript! Iterator " + this.name + " not toggling!");
+                    }
                 }
             }
         }

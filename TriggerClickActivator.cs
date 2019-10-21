@@ -29,6 +29,8 @@ public class TriggerClickActivator : MonoBehaviour {
     {
         if (!(toggleOnlyOnce && (toggleCount > 0)))
         {
+            //account for this now, if exceptions are thrown later in the for loop
+            toggleCount++;
             foreach (GameObject obj in TargetObjects)
             {
                 //toggle target is either a filter or a script (mutually exclusive)
@@ -56,7 +58,6 @@ public class TriggerClickActivator : MonoBehaviour {
                     }
                 }
             }
-        }
-        toggleCount++;
+        }        
     }
 }

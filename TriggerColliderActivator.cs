@@ -73,6 +73,8 @@ public class TriggerColliderActivator : MonoBehaviour {
             //that is, no subObjects of Player should be tagged as this!!! (no multiple triggers per interaction)
         if (Col.gameObject.tag == "Player" && (!(toggleOnlyOnce && (toggleCount > 0))))
         {
+            //account for this now, if exceptions are thrown later in the for loop
+            toggleCount++;
             foreach (GameObject obj in TargetObjects)
             {
                 //toggle target is either a filter or a script (mutually exclusive)
@@ -80,8 +82,7 @@ public class TriggerColliderActivator : MonoBehaviour {
                 if (obj.GetComponent<ToggleFilter>() != null)
                 {
                     obj.GetComponent<ToggleFilter>().Toggle(controlNumber);
-                    Logger.GetComponent<PathScript3>().logEventData("ColliderTrigger " + this.name
-                                                                    + " triggered filter " + obj.name);
+                    LogBehavior(this.name, obj.name);
                 }
                 //otherwise, try togglescript
                 else
@@ -89,9 +90,8 @@ public class TriggerColliderActivator : MonoBehaviour {
                     if (obj.GetComponent<ToggleScript>() != null)
                     {
                         obj.GetComponent<ToggleScript>().Toggle(controlNumber);
-                        Logger.GetComponent<PathScript3>().logEventData("ColliderTrigger " + this.name
-                                                                        + " triggered toggle " + obj.name);
-                    }
+                        LogBehavior(this.name, obj.name);
+                    }                        
                     //if nothing, throw a warning
                     else
                     {
@@ -100,7 +100,13 @@ public class TriggerColliderActivator : MonoBehaviour {
                     }
                 }                
             }
+        }        
+    }
+
+    void LogBehavior (string usedTrigger, string usedToggle) 
+    {
+        if (logTrigger && (Logger != null)) {
+            Logger.GetComponent<PathScript3>().logEventData("ColliderTrigger " + usedTrigger + " triggered " + usedToggle);
         }
-        toggleCount++;
     }
 }

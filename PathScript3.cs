@@ -218,7 +218,7 @@ public class PathScript3 : MonoBehaviour
             {
                 System.IO.File.AppendAllText(pathFileName, pathBuffer);
                 pathBuffer = "";
-                Debug.Log("Emptied " + bufferSize + " buffer");
+                Debug.Log("PathScript emptied a buffer of " + bufferSize + " items @" + Time.time);
             }
             
             pathCounter++;
