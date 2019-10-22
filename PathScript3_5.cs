@@ -1,14 +1,38 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
-// Unity VR PathScript, version 2018-08-23
-// This script collects all viable data a virtual environment user can generate.
-//  
-// The data is collected upon delay (e.g. 0.2s means five logs per second).
-//     Use movementLogInterval variable to set this up.
-// The data structure is: log # | hour | minute | second | milliseconds | x position | y | z | u camera angle | v | w 
-// During the data-collection process, logs are continually written to a unique timestamped file (fileName variable).
-//     The data is saved to a .csv file format (easily processed by any statistics software).
+// Unity VR PathScript, version 2019-10-22
+// This script collects data a virtual environment user can generate.
+//
+// For the current range of logging possibilities and settings, see the UI in Unity inspector
+//     Movement logging: Internal. Attach the script to the desired (FPS)Controller. Logs position and rotation. 
+//     Collision logging: External. For user controller bumping into Trigger colliders.
+//     Controller logging: Internal. Use of physical interface. Currently keyboard only, GetKeyDown() on Update().
+//     Eye tracking: External. SMI format. Deprecated.
+//     Eye tracking 2: External. Pupil Labs format (old). Deprecated.
+//     Eventlog: External. Free format, accepts any string at logEventInfo().
+//     Moving Objects log: Internal. Logs a list of movingObjects<GameObject>.
+//       
+//  Movement and moving objects are logged countinuously per interval, on a coroutine (max per fps).
+//      Set BufferSize for write buffer size (every Nth entry).
+//      Set MovementLogInterval for logging periodicity (0 = per fps). Otherwise, delay in seconds.
+//
+//  Data format: prefedined, per CSV standard and en-Us locale.
+//      Changeable per separatorDecimal and separatorItem. Consider format dependency of other apps.
+//  Data naming/location: set per dataPrefix and saveLocation. Make sure the dataLocation exists & is writeable.
+//  Data structure: see GenerateFileNames() for headers. Self-explanatory.
+//
+// Basic data structure example (path):
+//      userId -- generated per timestamp to identify the user in batch/multiple file processing
+//      logId  -- iterator on the current log file
+//      timestamp -- time (seconds), Unix epoch format
+//      hour | minute | second | milliseconds
+//      xpos | ypos | zpos -- location in global Unity coordinates (1 Unity unit = 1 meter)
+//      uMousePos | vMousePos | wMousePos -- camera position per mouse. Only u/v relevant (LCD task); only v (VR task)
+//      uGazePos | vGazePos | wGazePos    -- VR HMD camera. Only relevant when wearing HMD. Otherwise junk data
 //
 // Usage: Attach this script to an intended FPSController (dragging & dropping within the Hierarchy browser will do).
+//      Other dependent object have to be linked to it, too (e.g. movingObjects<>)
+// PathScript methods are public. If other scripts are linked to the GameObject with PathScript, they can log.
+//      E.g.: Logger.GetComponent<PathScript3>().logEventData(this.name + " triggered " + subObject.name);
 // --------------------------------------------------------------------------------------------------------------------
 
 using UnityEngine;
@@ -20,7 +44,7 @@ using System.Globalization;
 public class PathScript3_5 : MonoBehaviour
 {
     //data format
-    private string separatorDecimal = ".";        
+    private string separatorDecimal = ".";
     private string separatorItem = ",";
     private NumberFormatInfo numberFormat;
 
@@ -63,10 +87,10 @@ public class PathScript3_5 : MonoBehaviour
 
     //data file names
     private string pathFileName;
-	private string etFileName;
+    private string etFileName;
     private string et2FileName;
     private string collisionFileName;
-	private string controllerFileName;
+    private string controllerFileName;
     private string eventLogFileName;
     private string movingObjectsFileName;
 
@@ -75,15 +99,15 @@ public class PathScript3_5 : MonoBehaviour
     private string etBuffer;
     private string movingObjectsBuffer;
 
-	//keyPress states
-	private bool isPressedUp;
-	private bool isPressedDown;
-	private bool isPressedLeft;
-	private bool isPressedRight;
+    //keyPress states
+    private bool isPressedUp;
+    private bool isPressedDown;
+    private bool isPressedLeft;
+    private bool isPressedRight;
 
     //service variables - to prevent streams of same data
-	private string etLastFocusType;
-	private string collisionLastObject;
+    private string etLastFocusType;
+    private string collisionLastObject;
 
     //measurement iterator
     private int pathCounter;
@@ -112,21 +136,21 @@ public class PathScript3_5 : MonoBehaviour
         GenerateFileNames(true);
         StartCoroutine(PathLogger());
         StartCoroutine(MovingObjectsLogger());
-	}
+    }
 
-	//for logController (keyPress)
-	void Update()
+    //for logController (keyPress)
+    void Update()
     {
-		//multiple keys can be (un)pressed in a single frame
-		if (Input.GetKeyDown("up"))    { logControllerData("up",    true);  }
-		if (Input.GetKeyDown("down"))  { logControllerData("down",  true);  }
-		if (Input.GetKeyDown("left"))  { logControllerData("left",  true);  }
-		if (Input.GetKeyDown("right")) { logControllerData("right", true);	}
-		if (Input.GetKeyUp("up"))      { logControllerData("up",    false); }
-		if (Input.GetKeyUp("down"))    { logControllerData("down",  false); }
-		if (Input.GetKeyUp("left"))    { logControllerData("left",  false); }
-		if (Input.GetKeyUp("right"))   { logControllerData("right", false); }
-		//other, special keys
+        //multiple keys can be (un)pressed in a single frame
+        if (Input.GetKeyDown("up"))    { logControllerData("up",    true);  }
+        if (Input.GetKeyDown("down"))  { logControllerData("down",  true);  }
+        if (Input.GetKeyDown("left"))  { logControllerData("left",  true);  }
+        if (Input.GetKeyDown("right")) { logControllerData("right", true);  }
+        if (Input.GetKeyUp("up"))      { logControllerData("up",    false); }
+        if (Input.GetKeyUp("down"))    { logControllerData("down",  false); }
+        if (Input.GetKeyUp("left"))    { logControllerData("left",  false); }
+        if (Input.GetKeyUp("right"))   { logControllerData("right", false); }
+        //other, special keys
         if (allowSpecialKeys)
         {
             //if (Input.GetKeyDown ("x")) { logControllerData("event_marker", true); }
@@ -142,22 +166,21 @@ public class PathScript3_5 : MonoBehaviour
                     else
                     {
                         if (Input.GetKeyDown(specialKeys[i])) { logControllerData("special-" + i, true); }
-                    }                    
+                    }
                 }
             }
         }
-		
-	}
+    }
 
     // Generate new file name on every run (as per timestamp)
     void GenerateFileNames(bool includeVariableNames)
     {
-		fileNameTime = System.DateTime.Now.ToString("_yyyyMMdd_HHmmss");
-		this.pathFileName = @saveLocation + datasetPrefix + "_" + "path" + fileNameTime + ".txt";
-		this.etFileName = @saveLocation + datasetPrefix + "_" + "et" + fileNameTime + ".txt";
+        fileNameTime = System.DateTime.Now.ToString("_yyyyMMdd_HHmmss");
+        this.pathFileName = @saveLocation + datasetPrefix + "_" + "path" + fileNameTime + ".txt";
+        this.etFileName = @saveLocation + datasetPrefix + "_" + "et" + fileNameTime + ".txt";
         this.et2FileName = @saveLocation + datasetPrefix + "_" + "et2" + fileNameTime + ".txt";
         this.collisionFileName = @saveLocation + datasetPrefix + "_" + "collision" + fileNameTime + ".txt";
-		this.controllerFileName = @saveLocation + datasetPrefix + "_" + "controller" + fileNameTime + ".txt";
+        this.controllerFileName = @saveLocation + datasetPrefix + "_" + "controller" + fileNameTime + ".txt";
         this.eventLogFileName = @saveLocation + datasetPrefix + "_" + "eventlog" + fileNameTime + ".txt";
         this.movingObjectsFileName  = @saveLocation + datasetPrefix + "_" + "movingObj" + fileNameTime + ".txt";
 
@@ -171,18 +194,18 @@ public class PathScript3_5 : MonoBehaviour
                     "userId" + separatorItem + "logId" + separatorItem + "timestamp" + separatorItem +
                     "hour" + separatorItem + "min" + separatorItem +"sec" + separatorItem +"ms" + separatorItem +
                     "xpos" + separatorItem + "ypos" + separatorItem + "zpos" + separatorItem +
-                    "uMousePos" + separatorItem + "vMousePos" + separatorItem + "wMousePos" + separatorItem + 
+                    "uMousePos" + separatorItem + "vMousePos" + separatorItem + "wMousePos" + separatorItem +
                     "uGazePos" + separatorItem + "vGazePos" + separatorItem + "wGazePos" +
                     "\r\n");
             }
-			if (logCollisions)
+            if (logCollisions)
             {
                 System.IO.File.Create(collisionFileName).Dispose();
-                System.IO.File.AppendAllText(collisionFileName, 
+                System.IO.File.AppendAllText(collisionFileName,
                     "userId" + separatorItem + "logId" + separatorItem + "timestamp" + separatorItem +
                     "hour" + separatorItem + "min" + separatorItem + "sec" + separatorItem +"ms" + separatorItem +
                     "xpos" + separatorItem + "ypos" + separatorItem + "zpos" + separatorItem +
-                    "uMousePos" + separatorItem + "vMousePos" + separatorItem + "wMousePos" + separatorItem + 
+                    "uMousePos" + separatorItem + "vMousePos" + separatorItem + "wMousePos" + separatorItem +
                     "uGazePos" + separatorItem + "vGazePos" + separatorItem + "wGazePos" + separatorItem +
                     "objectName" + separatorItem + "xobj" + separatorItem + "yobj" + separatorItem + "zobj" +
                     "\r\n");
@@ -190,7 +213,7 @@ public class PathScript3_5 : MonoBehaviour
             if (logController)
             {
                 System.IO.File.Create(controllerFileName).Dispose();
-                System.IO.File.AppendAllText(controllerFileName, 
+                System.IO.File.AppendAllText(controllerFileName,
                     "userId" + separatorItem + "logId" + separatorItem + "timestamp" + separatorItem +
                     "hour" + separatorItem + "min" + separatorItem + "sec" + separatorItem +"ms" + separatorItem +
                     "xpos" + separatorItem + "ypos" + separatorItem + "zpos" + separatorItem +
@@ -202,11 +225,11 @@ public class PathScript3_5 : MonoBehaviour
             if (logEyeTracking)
             {
                 System.IO.File.Create(etFileName).Dispose();
-                System.IO.File.AppendAllText(etFileName, 
+                System.IO.File.AppendAllText(etFileName,
                     "userId" + separatorItem + "logId" + separatorItem + "timestamp" + separatorItem +
                     "hour" + separatorItem + "min" + separatorItem + "sec" + separatorItem +"ms" + separatorItem +
                     "xpos" + separatorItem + "ypos" + separatorItem + "zpos" + separatorItem +
-                    "uMousePos" + separatorItem + "vMousePos" + separatorItem + "wMousePos" + separatorItem + 
+                    "uMousePos" + separatorItem + "vMousePos" + separatorItem + "wMousePos" + separatorItem +
                     "uGazePos" + separatorItem + "vGazePos" + separatorItem + "wGazePos" + separatorItem +
                     "objName" + separatorItem + "objFocusType" + separatorItem +
                     "xobj" + separatorItem + "yobj" + separatorItem + "zobj" +
@@ -219,7 +242,7 @@ public class PathScript3_5 : MonoBehaviour
                     "userId" + separatorItem + "logId" + separatorItem + "timestamp" + separatorItem +
                     "hour" + separatorItem + "min" + separatorItem + "sec" + separatorItem +"ms" + separatorItem +
                     "xpos" + separatorItem + "ypos" + separatorItem + "zpos" + separatorItem +
-                    "uMousePos" + separatorItem + "vMousePos" + separatorItem + "wMousePos" + separatorItem + 
+                    "uMousePos" + separatorItem + "vMousePos" + separatorItem + "wMousePos" + separatorItem +
                     "uGazePos" + separatorItem + "vGazePos" + separatorItem + "wGazePos" + separatorItem +
                     "xobj" + separatorItem + "yobj" + separatorItem + "zobj" +
                     "\r\n");
@@ -247,8 +270,8 @@ public class PathScript3_5 : MonoBehaviour
                     //-------------------------------------------------------------------------------------------
                     "\r\n");
             }
-		}
-	}
+        }
+    }
 
     // ----------------------------------------------------------------------------------------------------------------
     // Main logger functions
@@ -279,7 +302,7 @@ public class PathScript3_5 : MonoBehaviour
                 pathBuffer = "";
                 Debug.Log("PathScript emptied a buffer of " + bufferSize + " items @" + Time.time);
             }
-                 
+
             pathCounter++;
             yield return new WaitForSeconds(movementLogInterval);
         }
@@ -324,8 +347,8 @@ public class PathScript3_5 : MonoBehaviour
         }
     }
 
-    //object-based ET logger
-	public void logEtData(string objName, string objFocusType, string objCoordinates)
+    //object-based ET logger (SMI, deprecated)
+    public void logEtData(string objName, string objFocusType, string objCoordinates)
     {
         if (logEyeTracking)
         {
@@ -345,9 +368,9 @@ public class PathScript3_5 : MonoBehaviour
                 etLastFocusType = objFocusType;
             //}
         }
-	}
+    }
 
-    //coordinate-based ET logger
+    //coordinate-based ET logger (Pupil Labs 1.13, deprecated)
     public void logEtData2(Vector3 fixationPosition)
     {
         //to implement this, try the following:
@@ -377,8 +400,9 @@ public class PathScript3_5 : MonoBehaviour
             etCounter++;
         }
     }
-	
-	public void logCollisionData(string objName, string objCoordinates)
+    
+    //external collision logger, as reported from a script attached to a GameObject with Collider.isTrigger = true;
+    public void logCollisionData(string objName, string objCoordinates)
     {
         if (logCollisions)
         {
@@ -396,10 +420,12 @@ public class PathScript3_5 : MonoBehaviour
                 collisionCounter++;
                 collisionLastObject = objName;
             }
-        }	    
-	}
+        }
+    }
 
-	public void logControllerData(string keyPress, bool isDown)
+    //physical controller logger; currently keyboard-only;
+    //basic arrow keys & the ability to define own speacial keys in specialKeys[] and specialKeyMeanings[]
+    public void logControllerData(string keyPress, bool isDown)
     {
         if (logController)
         {
@@ -465,9 +491,10 @@ public class PathScript3_5 : MonoBehaviour
                                  fileNameTime + "\r\n";
             System.IO.File.AppendAllText(controllerFileName, currentData);
             controllerCounter++;
-        }		
-	}
+        }
+    }
 
+    //external freeform data logger; takes an event string as an input (meaning/format up to the external script)
     public void logEventData(string eventInfo)
     {
         if (eventLog)
@@ -533,6 +560,7 @@ public class PathScript3_5 : MonoBehaviour
         return coordinates + separatorItem + rotationMouse + separatorItem + rotationGaze;
     }
 
+    //do some cleaning on nasty numeric data converted to string, e.g. Vector3
     public string cleanNumericData(string inputString)
     {
         string outputString = inputString.Replace("(", "").Replace(")", "").Replace(",", separatorItem);
