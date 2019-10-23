@@ -124,7 +124,7 @@ public class PathScript3_5 : MonoBehaviour
     // ----------------------------------------------------------------------------------------------------------------
 
     // Use this for initialization
-    void Start()
+    void Awake()
     {
         //to have a standardized decimal separator across different system locales
         //usage: someNumber.ToString(numberFormat)
@@ -252,7 +252,7 @@ public class PathScript3_5 : MonoBehaviour
                 System.IO.File.Create(eventLogFileName).Dispose();
                 System.IO.File.AppendAllText(eventLogFileName,
                     "userId" + separatorItem + "logId" + separatorItem + "timestamp" + separatorItem +
-                    "hour" + separatorItem + "min" + separatorItem + "sec" + separatorItem +"ms" +
+                    "hour" + separatorItem + "min" + separatorItem + "sec" + separatorItem +"ms" + separatorItem +
                     "eventInfo" +
                     "\r\n");
             }
@@ -361,8 +361,8 @@ public class PathScript3_5 : MonoBehaviour
                                      GetCurrentPosition() + separatorItem +
                                      objName + separatorItem +
                                      objFocusType + separatorItem +
-                                     objCoordinates + separatorItem +
-                                     fileNameTime + "\r\n";
+                                     objCoordinates +
+                                     "\r\n";
                 System.IO.File.AppendAllText(etFileName, currentData);
                 etCounter++;
                 etLastFocusType = objFocusType;
@@ -387,8 +387,8 @@ public class PathScript3_5 : MonoBehaviour
                                  GetCurrentPosition() + separatorItem +
                                  fixationPosition.x.ToString(numberFormat) + separatorItem +
                                  fixationPosition.y.ToString(numberFormat) + separatorItem +
-                                 fixationPosition.z.ToString(numberFormat) + separatorItem +
-                                 fileNameTime + "\r\n";
+                                 fixationPosition.z.ToString(numberFormat) +
+                                 "\r\n";
 
             //log, or buffer to log
             etBuffer += currentData;
@@ -414,8 +414,8 @@ public class PathScript3_5 : MonoBehaviour
                                      GetCurrentTimestamp() + separatorItem + GetCurrentTime() + separatorItem +
                                      GetCurrentPosition() + separatorItem +
                                      objName + separatorItem +
-                                     objCoordinates + separatorItem +
-                                     fileNameTime + "\r\n";
+                                     objCoordinates +
+                                     "\r\n";
                 System.IO.File.AppendAllText(collisionFileName, currentData);
                 collisionCounter++;
                 collisionLastObject = objName;
@@ -487,8 +487,8 @@ public class PathScript3_5 : MonoBehaviour
                                  GetCurrentPosition() + separatorItem +
                                  keyPress + separatorItem +
                                  isDown + separatorItem +
-                                 keyDirection + separatorItem +
-                                 fileNameTime + "\r\n";
+                                 keyDirection +
+                                 "\r\n";
             System.IO.File.AppendAllText(controllerFileName, currentData);
             controllerCounter++;
         }
@@ -497,12 +497,16 @@ public class PathScript3_5 : MonoBehaviour
     //external freeform data logger; takes an event string as an input (meaning/format up to the external script)
     public void logEventData(string eventInfo)
     {
-        if (eventLog)
+        if (!eventLog)
+        {
+            Debug.LogWarning("Event logging called despite this being disabled. More info: " + eventInfo);
+        }
+        else
         {
             string currentData = fileNameTime + separatorItem + eventLogCounter + separatorItem +
                                  GetCurrentTimestamp() + separatorItem + GetCurrentTime() + separatorItem +
-                                 eventInfo + separatorItem +
-                                 fileNameTime + "\r\n";
+                                 eventInfo +
+                                 "\r\n";
             System.IO.File.AppendAllText(eventLogFileName, currentData);
             eventLogCounter++;
         }
@@ -566,5 +570,13 @@ public class PathScript3_5 : MonoBehaviour
         string outputString = inputString.Replace("(", "").Replace(")", "").Replace(",", separatorItem);
         //do more cleaning, if applicable
         return outputString;
+    }
+
+    //get separator/decimal format (useful for external scripts that send sth to the logger)
+    public Dictionary<string, string> getLogFormat() {
+        Dictionary<string, string> formatDictionary = new Dictionary<string, string>();
+        formatDictionary.Add("decimalFormat", separatorDecimal);
+        formatDictionary.Add("separatorFormat", separatorItem);
+        return formatDictionary;
     }
 }
