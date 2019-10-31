@@ -42,9 +42,9 @@ public class RaycastTargetter : MonoBehaviour
         if (raySource == null || rayDestination == null) {
             Debug.LogWarning("RaycasterTargetter failed to initialize. Check ray source/destination.");
         }
-        else if (Logger == null || Logger.GetComponent<PathScript3_5>() == null)
+        else if (Logger == null || Logger.GetComponent<PathScript>() == null)
         {
-            Debug.LogWarning("Logger failed to initialize. Check Logger GameObject (PathScript3_5).");
+            Debug.LogWarning("Logger failed to initialize. Check Logger GameObject (PathScript).");
         }
         //if so, get the coordinates and allow raycast processing
         else
@@ -54,7 +54,7 @@ public class RaycastTargetter : MonoBehaviour
             initValidized = true;
             //init file format
             Dictionary<string, string> fileFormatDict = new Dictionary<string, string>();
-            fileFormatDict = Logger.GetComponent<PathScript3_5>().getLogFormat();
+            fileFormatDict = Logger.GetComponent<PathScript>().getLogFormat();
             separatorItem = fileFormatDict["separatorFormat"];
             separatorDecimal = fileFormatDict["decimalFormat"];
             numberFormat = new NumberFormatInfo();
@@ -117,7 +117,7 @@ public class RaycastTargetter : MonoBehaviour
                            normalizedDirection.z;
             }
             //log the data and wait till the next cycle
-            Logger.GetComponent<PathScript3_5>().logEventData(logData);
+            Logger.GetComponent<PathScript>().logEventData(logData);
             yield return new WaitForSeconds(logDelay);
         }
     }

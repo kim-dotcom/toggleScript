@@ -13,7 +13,6 @@ public class TriggerDistance : MonoBehaviour
     protected int checkIterator = 0;
     protected float currentDistance;
     
-
     //the following structure is necessary, so as to have a 2D array (objects per distance) visible in the inspector
     [System.Serializable]
     public struct TargetDistanceLists
@@ -59,10 +58,13 @@ public class TriggerDistance : MonoBehaviour
                     //..toggle the objects in that range
                     for (int j = 0; j < targetDistances[i].thisDistanceObjects.Length; j++)
                     {
+                        //TODO: toggle only if distance interval changes (ATM, it toggles every nth frame regardless)
                         targetDistances[i].thisDistanceObjects[j].GetComponent<ToggleScript>()
                         .Toggle(targetDistances[i].controlNumber);
                         targetDistances[i].triggerCount++;
-                    }        
+                        LogBehavior(targetDistances[i].controlNumber, targetDistances[i].thisDistanceObjects[j].name,
+                                    currentDistance);
+                    }
                 }
             }
         }
@@ -71,5 +73,15 @@ public class TriggerDistance : MonoBehaviour
     void getDistance()
     {
         currentDistance = Vector3.Distance (this.transform.position, TargetObject.transform.position);
+    }
+
+    void LogBehavior (int controlNumber, string objectName, float distance) 
+    {
+        if (logTrigger && (Logger.GetComponent<PathScript>() != null))
+        {
+            Logger.GetComponent<PathScript>().logEventData("TriggerDistance " + this.name + " at state " +
+                                                           controlNumber + " on object " + objectName +
+                                                           ", distance " + distance);
+        }
     }
 }

@@ -32,7 +32,7 @@
 // Usage: Attach this script to an intended FPSController (dragging & dropping within the Hierarchy browser will do).
 //      Other dependent object have to be linked to it, too (e.g. movingObjects<>)
 // PathScript methods are public. If other scripts are linked to the GameObject with PathScript, they can log.
-//      E.g.: Logger.GetComponent<PathScript3>().logEventData(this.name + " triggered " + subObject.name);
+//      E.g.: Logger.GetComponent<PathScript>().logEventData(this.name + " triggered " + subObject.name);
 // --------------------------------------------------------------------------------------------------------------------
 
 using UnityEngine;
@@ -41,7 +41,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 
-public class PathScript3_5 : MonoBehaviour
+public class PathScript : MonoBehaviour
 {
     //data format
     private string separatorDecimal = ".";
@@ -379,7 +379,7 @@ public class PathScript3_5 : MonoBehaviour
         //{
         //  Player = GameObject.FindGameObjectWithTag("Player");
         //}
-        //Player.GetComponent<PathScript3>().logEt2Data(Vector3 fixationPosition);
+        //Player.GetComponent<PathScript>().logEt2Data(Vector3 fixationPosition);
         if (logEyeTracking2)
         {
             string currentData = fileNameTime + separatorItem + etCounter + separatorItem +

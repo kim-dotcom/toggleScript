@@ -56,7 +56,7 @@ public class TriggerTimer : MonoBehaviour
         if (triggerActivateBy == TriggerActivation.onStart)
         {
                 startTrigger();
-        }        
+        }
     }
 
     void Update()
@@ -89,12 +89,13 @@ public class TriggerTimer : MonoBehaviour
                         if (subObject.GetComponent<ToggleScript>() != null)
                         {
                             subObject.GetComponent<ToggleScript>().Toggle(item.controlNumber);
+                            LogBehavior(item.controlNumber, subObject.name);
                         }
                     }
                     TargetObjects[i].wasTriggered = true;
                     TargetObjects[i].triggerCount++;
                 }
-                i++;               
+                i++;
             }
         }
     }
@@ -168,5 +169,14 @@ public class TriggerTimer : MonoBehaviour
                 startTrigger();
         }
         resetCount++;
+    }
+
+    void LogBehavior (int controlNumber, string objectName) 
+    {
+        if (logTrigger && (Logger.GetComponent<PathScript>() != null))
+        {
+            Logger.GetComponent<PathScript>().logEventData("TriggerTimer " + this.name + " triggered with state " +
+                                                           controlNumber + " on object " + objectName);
+        }
     }
 }

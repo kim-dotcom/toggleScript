@@ -38,7 +38,7 @@ public class TriggerClickActivator : MonoBehaviour {
                 if (obj.GetComponent<ToggleFilter>() != null)
                 {
                     obj.GetComponent<ToggleFilter>().Toggle(controlNumber);
-                    Logger.GetComponent<PathScript3>().logEventData("ClickTrigger " + this.name
+                    Logger.GetComponent<PathScript>().logEventData("ClickTrigger " + this.name
                                                                     + " triggered filter " + obj.name);
                 }
                 //otherwise, try togglescript
@@ -47,7 +47,7 @@ public class TriggerClickActivator : MonoBehaviour {
                     if (obj.GetComponent<ToggleScript>() != null)
                     {
                         obj.GetComponent<ToggleScript>().Toggle(controlNumber);
-                        Logger.GetComponent<PathScript3>().logEventData("ClickTrigger " + this.name
+                        Logger.GetComponent<PathScript>().logEventData("ClickTrigger " + this.name
                                                                         + " triggered toggle " + obj.name);
                     }
                     //if nothing, throw a warning

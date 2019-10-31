@@ -53,7 +53,7 @@ public class TriggerKeyActivator : MonoBehaviour {
                             subObject.GetComponent<ToggleFilter>()
                                     .Toggle(TargetObjects[triggerKeys.IndexOf(key)]
                                     .controlNumber);
-                            Logger.GetComponent<PathScript3>().logEventData("KeyTrigger " + this.name
+                            Logger.GetComponent<PathScript>().logEventData("KeyTrigger " + this.name
                                                                             + " triggered filter " + subObject.name);
                         }
                         //otherwise, try togglescript
@@ -64,7 +64,7 @@ public class TriggerKeyActivator : MonoBehaviour {
                                 subObject.GetComponent<ToggleScript>()
                                     .Toggle(TargetObjects[triggerKeys.IndexOf(key)]
                                     .controlNumber);
-                                //Logger.GetComponent<PathScript3>().logEventData("KeyTrigger " + this.name
+                                //Logger.GetComponent<PathScript>().logEventData("KeyTrigger " + this.name
                                 //                                                + " triggered" toggle " + subObject.name");
                             }
                             //if nothing, throw a warning

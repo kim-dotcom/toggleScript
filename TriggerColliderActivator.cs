@@ -12,7 +12,7 @@ public class TriggerColliderActivator : MonoBehaviour {
     public bool triggerOnEnter = true;
     public bool triggerOnExit;
     public bool triggerOnStay;
-    public float triggerStayTime;    
+    public float triggerStayTime;
     private int toggleCount;
     private float colliderStayTime;
     private bool triggeredOnThisStay;
@@ -38,7 +38,7 @@ public class TriggerColliderActivator : MonoBehaviour {
         if (triggerOnEnter)
         {
             TriggerPerCollider(Col);
-        }      
+        }
     }
 
     //once FPSController exits the collider, trigger
@@ -91,22 +91,23 @@ public class TriggerColliderActivator : MonoBehaviour {
                     {
                         obj.GetComponent<ToggleScript>().Toggle(controlNumber);
                         LogBehavior(this.name, obj.name);
-                    }                        
+                    }
                     //if nothing, throw a warning
                     else
                     {
                         Debug.LogWarning("Object " + obj.name +
                                          " has no toggleScript! Trigger " + this.name + " not toggling!");
                     }
-                }                
+                }
             }
-        }        
+        }
     }
 
     void LogBehavior (string usedTrigger, string usedToggle) 
     {
-        if (logTrigger && (Logger != null)) {
-            Logger.GetComponent<PathScript3>().logEventData("ColliderTrigger " + usedTrigger + " triggered " + usedToggle);
+        if (logTrigger && (Logger != null))
+        {
+            Logger.GetComponent<PathScript>().logEventData("ColliderTrigger " + usedTrigger + " triggered " + usedToggle);
         }
     }
 }
