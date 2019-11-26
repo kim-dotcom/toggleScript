@@ -581,7 +581,8 @@ public class PathScript : MonoBehaviour
             customLogBuffers[targettedCustomLogId] += currentData;
             if (customLogCounters[targettedCustomLogId] % bufferSize == 0)
             {
-                System.IO.File.AppendAllText(customLogFileNames[targettedCustomLogId], currentData);
+                System.IO.File.AppendAllText(customLogFileNames[targettedCustomLogId],
+                                             customLogBuffers[targettedCustomLogId]);
                 customLogBuffers[targettedCustomLogId] = "";
             }
             customLogCounters[targettedCustomLogId]++;
