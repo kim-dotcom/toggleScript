@@ -13,7 +13,8 @@ public class RaycastTargetter : MonoBehaviour
 
     //logging setup and intensity
     public bool logEvents;
-    public bool logCoordinates;
+    public bool logCoordinatesSource;
+    public bool logCoordinatesTarget;
     [Range(0f,5f)]
     public float logDelay = 0.01f;
     [Space(10)]
@@ -21,12 +22,21 @@ public class RaycastTargetter : MonoBehaviour
     public bool visualizeRay;
     [Space(10)]
 
-    //logger object (PathScript)
+    //logger object (PathScript) and logging setup
     public GameObject Logger;
+    public bool customLogfile;
+    public string customLogfileName = "raycastTargetter";
+
+    //log data format
+    private string dataformatDefault;
+    private string dataformatEvents;
+    private string dataformatSource;
+    private string dataformatTarget;
+    private string dataformatConcatenated;
 
     //auxiliaries
     private Vector3 sourceCoordinates;
-    private Vector3 targetCorrdinates;
+    private Vector3 targetCoordinates;
     private Vector3 normalizedDirection;
     private bool initValidized;
     private bool initWaited;
@@ -34,7 +44,7 @@ public class RaycastTargetter : MonoBehaviour
     private string separatorItem = ",";
     private NumberFormatInfo numberFormat;
 
-    void Awake()
+    void Start()
     {
         //see if there are source/target objects to latch to
         initValidized = false;
@@ -60,6 +70,24 @@ public class RaycastTargetter : MonoBehaviour
             numberFormat = new NumberFormatInfo();
             numberFormat.NumberDecimalSeparator = separatorDecimal;
             //init logger
+            if (customLogfile || customLogfileName != "")
+            {
+                dataformatDefault = "userId" + separatorItem + "logId" + separatorItem + "timestamp" + separatorItem +
+                                    "hour" + separatorItem + "min" + separatorItem + "sec" + separatorItem +"ms";
+                dataformatEvents = "objectHitEvaluation" + separatorItem + "objectHitName";
+                dataformatSource = "dataType" + separatorItem +
+                                   "sourceX" + separatorItem + "sourceY" + separatorItem + "sourceZ" + separatorItem +
+                                   "vectorX" + separatorItem + "vectorY" + separatorItem + "vectorZ";
+                dataformatTarget = "targetX" + separatorItem + "targetY" + separatorItem + "targetZ" + separatorItem +
+                                   "sourceTargetDistance" + separatorItem + "sourceHitDistance";
+                dataformatConcatenated = dataformatDefault;
+                if (logEvents) dataformatConcatenated += separatorItem + dataformatEvents;
+                if (logCoordinatesSource) dataformatConcatenated += separatorItem + dataformatSource;
+                if (logCoordinatesTarget) dataformatConcatenated += separatorItem + dataformatTarget;
+                dataformatConcatenated += "\r\n";
+                Logger.GetComponent<PathScript>().generateCustomFileNames(dataformatConcatenated, customLogfileName,
+                                                                          gameObject.name);
+            }
             StartCoroutine(RaycastInit(1f));
         }
     }
@@ -92,10 +120,10 @@ public class RaycastTargetter : MonoBehaviour
         {
             string logData = "";
             initRaycastCoordinates();
+            RaycastHit hit = new RaycastHit();
             //log hit object events
             if (logEvents)
             {
-                RaycastHit hit = new RaycastHit();
                 if (Physics.Raycast(sourceCoordinates, normalizedDirection, out hit, rayDistance))
                 {
                     logData += "objectHit" + separatorItem + hit.collider.gameObject.name;
@@ -105,7 +133,7 @@ public class RaycastTargetter : MonoBehaviour
                 }
             }
             //log raycast coordinates(origin, normalized direction)
-            if (logCoordinates)
+            if (logCoordinatesSource)
             {
                 if (logEvents) logData += separatorItem;
                 logData += "rayCoordinates" + separatorItem +
@@ -116,8 +144,27 @@ public class RaycastTargetter : MonoBehaviour
                            normalizedDirection.y + separatorItem +
                            normalizedDirection.z;
             }
+            //log object hit coordinates
+            if (logCoordinatesTarget)
+            {
+                if (logEvents || logCoordinatesSource) logData += separatorItem;
+                logData += targetCoordinates.x + separatorItem +
+                           targetCoordinates.y + separatorItem + 
+                           targetCoordinates.z + separatorItem +
+                           Vector3.Distance(sourceCoordinates, targetCoordinates) + separatorItem +
+                           hit.distance;
+            }
             //log the data and wait till the next cycle
-            Logger.GetComponent<PathScript>().logEventData(logData);
+            //Debug.Log("RCTargetter sending this: " + logData + ", to this file: " + customLogfileName);
+            if (customLogfile)
+            {
+                Logger.GetComponent<PathScript>().logCustomData(customLogfileName, logData);
+            }
+            else
+            {
+                Logger.GetComponent<PathScript>().logEventData(logData);
+            }
+            
             yield return new WaitForSeconds(logDelay);
         }
     }
@@ -126,7 +173,7 @@ public class RaycastTargetter : MonoBehaviour
     void initRaycastCoordinates()
     {
             sourceCoordinates = raySource.transform.position;
-            targetCorrdinates = rayDestination.transform.position;
-            normalizedDirection = (targetCorrdinates - sourceCoordinates).normalized;
+            targetCoordinates = rayDestination.transform.position;
+            normalizedDirection = (targetCoordinates - sourceCoordinates).normalized;
     }
 }

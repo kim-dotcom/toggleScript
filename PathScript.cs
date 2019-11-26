@@ -44,8 +44,8 @@ using System.Globalization;
 public class PathScript : MonoBehaviour
 {
     //data format
-    private string separatorDecimal = ".";
-    private string separatorItem = ",";
+    public string separatorDecimal = ".";
+    public string separatorItem = ";";
     private NumberFormatInfo numberFormat;
 
     //log buffering
@@ -55,13 +55,14 @@ public class PathScript : MonoBehaviour
 
     //set up which variables are to be logged (some of these are called from external scripts on associated objects)
     public bool logMovement;
+    public bool logMovingObjects;
+    public List<GameObject> movingObjects;
     public bool logCollisions;
     public bool logController;
     public bool logEyeTracking;
     public bool logEyeTracking2;
     public bool eventLog;
-    public bool logMovingObjects;
-    public List<GameObject> movingObjects;
+    public bool allowCustomLogs;
     [Space(10)]
 
     //delay among individual movement measurements
@@ -93,11 +94,14 @@ public class PathScript : MonoBehaviour
     private string controllerFileName;
     private string eventLogFileName;
     private string movingObjectsFileName;
+    public List<string> customLogFileNames;
+    public List<string> customLogNames;
 
     //data buffers
     private string pathBuffer;
     private string etBuffer;
     private string movingObjectsBuffer;
+    public List<string> customLogBuffers;
 
     //keyPress states
     private bool isPressedUp;
@@ -116,6 +120,7 @@ public class PathScript : MonoBehaviour
     private int controllerCounter;
     private int eventLogCounter;
     private int movingObjectsCounter;
+    public List<int> customLogCounters;
     //participant/data marker
     private string fileNameTime;
 
@@ -126,6 +131,12 @@ public class PathScript : MonoBehaviour
     // Use this for initialization
     void Awake()
     {
+        //init datastructures
+        customLogFileNames = new List<string>();
+        customLogNames = new List<string>();
+        customLogBuffers = new List<string>();
+        customLogCounters = new List<int>();
+
         //to have a standardized decimal separator across different system locales
         //usage: someNumber.ToString(numberFormat)
         numberFormat = new NumberFormatInfo();
@@ -133,6 +144,7 @@ public class PathScript : MonoBehaviour
 
         specialKeysLength = specialKeys.Length;
         specialKeyMeaningsLength = specialKeyMeanings.Length;
+        fileNameTime = System.DateTime.Now.ToString("_yyyyMMdd_HHmmss");
         GenerateFileNames(true);
         StartCoroutine(PathLogger());
         StartCoroutine(MovingObjectsLogger());
@@ -175,7 +187,6 @@ public class PathScript : MonoBehaviour
     // Generate new file name on every run (as per timestamp)
     void GenerateFileNames(bool includeVariableNames)
     {
-        fileNameTime = System.DateTime.Now.ToString("_yyyyMMdd_HHmmss");
         this.pathFileName = @saveLocation + datasetPrefix + "_" + "path" + fileNameTime + ".txt";
         this.etFileName = @saveLocation + datasetPrefix + "_" + "et" + fileNameTime + ".txt";
         this.et2FileName = @saveLocation + datasetPrefix + "_" + "et2" + fileNameTime + ".txt";
@@ -270,6 +281,40 @@ public class PathScript : MonoBehaviour
                     //-------------------------------------------------------------------------------------------
                     "\r\n");
             }
+        }
+    }
+
+    //generate file names for custom loggers (if allowed)
+        //if not allowed, return false so that the external logger doesn't send junk data
+    public bool generateCustomFileNames(string customLogVariables, string logName, string callerName)
+    {
+        //input verification
+        if (!allowCustomLogs)
+        {
+            Debug.LogWarning("Object " + callerName + " tried to create custom log " + logName + ". " +
+                             "Custom logs are disabled");
+            return false;
+        }
+        else if (logName == "")
+        {
+            Debug.LogWarning("Object " + callerName + " tried to create custom log with no name.");
+            return false;
+        }
+        //file creation
+        else
+        {
+            //custom log names/fileNames/buffers have to be created simultaneously, so that they retain the same [i]
+                //this is loose coupling of two Lists, as oppposed to List<Hashtable<string, string>>
+            customLogNames.Add(logName);
+            customLogFileNames.Add(@saveLocation + datasetPrefix + "_" + logName + fileNameTime + ".txt");
+            customLogBuffers.Add("");
+            customLogCounters.Add(1);
+            System.IO.File.Create(customLogFileNames[customLogFileNames.Count - 1]).Dispose();
+            if (customLogVariables != "")
+            {
+                System.IO.File.AppendAllText(customLogFileNames[customLogFileNames.Count - 1], customLogVariables);
+            }
+            return true;
         }
     }
 
@@ -509,6 +554,38 @@ public class PathScript : MonoBehaviour
                                  "\r\n";
             System.IO.File.AppendAllText(eventLogFileName, currentData);
             eventLogCounter++;
+        }
+    }
+
+    //external pre-specified data logger with dedicated log file to it; can be multiple files, has to specify which one
+    //format validity is up to the external script
+    public bool logCustomData(string logName, string customData)
+    {
+        //verify if log file exists
+        int targettedCustomLogId = 0;
+        if (!customLogNames.Contains(logName))
+        {
+            Debug.LogWarning("Custom logging called into a non-existent log file: " + logName + ". Aborting.");
+            return false;
+        }
+        else
+        {
+            targettedCustomLogId = customLogNames.IndexOf(logName);
+            string currentData = fileNameTime + separatorItem +
+                                 customLogCounters[targettedCustomLogId] + separatorItem +
+                                 GetCurrentTimestamp() + separatorItem + GetCurrentTime() + separatorItem +
+                                 customData +
+                                 "\r\n";
+
+            //log, or buffer to log
+            customLogBuffers[targettedCustomLogId] += currentData;
+            if (customLogCounters[targettedCustomLogId] % bufferSize == 0)
+            {
+                System.IO.File.AppendAllText(customLogFileNames[targettedCustomLogId], currentData);
+                customLogBuffers[targettedCustomLogId] = "";
+            }
+            customLogCounters[targettedCustomLogId]++;
+            return true;
         }
     }
 
