@@ -94,13 +94,16 @@ public class PathScript : MonoBehaviour
     private string controllerFileName;
     private string eventLogFileName;
     private string movingObjectsFileName;
+    [HideInInspector]
     public List<string> customLogFileNames;
+    [HideInInspector]
     public List<string> customLogNames;
 
     //data buffers
     private string pathBuffer;
     private string etBuffer;
     private string movingObjectsBuffer;
+    [HideInInspector]
     public List<string> customLogBuffers;
 
     //keyPress states
@@ -120,6 +123,7 @@ public class PathScript : MonoBehaviour
     private int controllerCounter;
     private int eventLogCounter;
     private int movingObjectsCounter;
+    [HideInInspector]
     public List<int> customLogCounters;
     //participant/data marker
     private string fileNameTime;
