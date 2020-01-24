@@ -7,11 +7,12 @@ public class ToggleScript : MonoBehaviour {
     //to reference the object the script is attached to
     private GameObject thisObject;
 
+    [Header("Control Number")]
     //to override the trigger-specified control number
     public bool overrideControlNumber;
-    public int thisControlNumber;    
-    [Space(10)]
+    public int thisControlNumber;
 
+    [Header("Autonomous Behavior")]
     //to make the toggle irreversible 
     public bool toggleOnlyOnce;
     //to self-toggle on application start
@@ -35,14 +36,14 @@ public class ToggleScript : MonoBehaviour {
     private bool activationDelayElapsed;
     private bool deactivationDelayElapsed;
     private int delayedActivationStoredControlNumber;
-    [Space(10)]
 
+    [Header("Player Manipulation")]
     //this gameObject serves as a teleporter target
         //better be empty gameobject
     public bool isTeleporter;
     private GameObject teleportedFPSController;
-    [Space(10)]
 
+    [Header("Light Manipulation")]
     //this gameObject is an on/off light
     //has to be attached to an actual light for this to work
     public bool isLightSwitch;
@@ -53,8 +54,8 @@ public class ToggleScript : MonoBehaviour {
     private float lightTargetIntensity;
     private Light thisLight;
     private bool lightIsOn;
-    [Space(10)]
 
+    [Header("Texture Manipulation")]
     //to change the color of the object (to highlight it)
     public bool changeColor;
     public Color targetColor;
@@ -65,15 +66,15 @@ public class ToggleScript : MonoBehaviour {
     public bool changeTexture;
     public List<Material> textureSet;
     private Material originalTexture;
-    [Space(10)]
 
+    [Header("Text/UI Manipulation")]
     //to change canvas text value to one in the list
     public bool changeCanvasText;
     public List<string> canvasTextSet;
     private Text thisObjectCanvasText;
     private string originalCanvasText;
-    [Space(10)]
 
+    [Header("Object Manipulation (show/hide)")]
     //to hide/show (or show/hide) on toggle
     public bool hideOnToggle;
     public bool hiddenByDefault;
@@ -82,8 +83,8 @@ public class ToggleScript : MonoBehaviour {
     //to cycle hide/show of a list of child/linked gameObjects
     public bool cycleChildObjects;
     public List<GameObject> childObjectSet;
-    [Space(10)]
 
+    [Header("Object Manipulation (movement)")]
     //to rotate the object at a specified speed/direction
     public bool rotate;    
     public Vector3 RotationSpeed;    
@@ -114,8 +115,8 @@ public class ToggleScript : MonoBehaviour {
     private bool isTransitioning;
     //private int transitioningSteps;
     private Vector3 transitioningTo;
-    [Space(10)]
 
+    [Header("Audio Manipulation")]
     //to play audio
     public bool playAudio;
     public List<AudioClip> audioFiles;
@@ -343,11 +344,19 @@ public class ToggleScript : MonoBehaviour {
             {
                 if (!toggleState)
                 {
-                    thisObject.GetComponent<Renderer>().material.color = targetColor;
+                    //this is shader-dependant! if Unity standard shaders (URP/HDRP) alter this property, will not work
+                    //but then, fix easily by altering property name
+                    if(thisObject.GetComponent<Renderer>().material.HasProperty("_Color"))
+                    {
+                        thisObject.GetComponent<Renderer>().material.color = targetColor;
+                    }
                 }
                 else
                 {
-                    thisObject.GetComponent<Renderer>().material.color = originalColor;
+                    if(thisObject.GetComponent<Renderer>().material.HasProperty("_Color"))
+                    {
+                        thisObject.GetComponent<Renderer>().material.color = originalColor;
+                    }
                     //TODO: other material alterations
                 }
             }
