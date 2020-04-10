@@ -5,7 +5,10 @@ This is the official Toggle Toolkit repository.
 Contains:
 
 -- toggleScript (universal one)
+
+
 -- triggerScripts (many variations)
+
 -- pathScript (data logging, to be potentially used elsewhere)
 
 -------------------------------------------------------------------------------
@@ -19,4 +22,5 @@ The toolkit enables researchers in different fields to design, conduct and evalu
 Reference:
 
 "Toggle Toolkit technical documentation.pdf" - examples of implementation.
+
 Furthermore, all C# scripts were properly documented (headers, code body).
