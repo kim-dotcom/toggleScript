@@ -1,5 +1,5 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
-// Unity VR PathScript, version 2019-10-22
+// Unity VR PathScript, version 2020-06-22
 // This script collects data a virtual environment user can generate.
 //
 // For the current range of logging possibilities and settings, see the UI in Unity inspector
@@ -40,6 +40,7 @@ using UnityEngine.UI;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 
 public class PathScript : MonoBehaviour
 {
@@ -49,7 +50,7 @@ public class PathScript : MonoBehaviour
     private NumberFormatInfo numberFormat;
 
     //log buffering
-    [Range(1, 100)]
+    [Range(1, 1000)]
     public int bufferSize = 1;
     [Space(10)]
 
@@ -76,7 +77,7 @@ public class PathScript : MonoBehaviour
 
     //log files naming convention and save location
     public string datasetPrefix = "";
-    public string saveLocation = "D:\\";
+    public string saveLocation = "C:\\";
     [Space(10)]
 
     //extra controller keys
@@ -128,6 +129,16 @@ public class PathScript : MonoBehaviour
     //participant/data marker
     private string fileNameTime;
 
+    //auxiliary structures
+    [HideInInspector] public StreamWriter streamWriterMovement;
+    [HideInInspector] public StreamWriter streamWriterCollisions;
+    [HideInInspector] public StreamWriter streamWriterController;
+    [HideInInspector] public StreamWriter streamWriterEyeTracking;
+    [HideInInspector] public StreamWriter streamWriterEyeTracking2;
+    [HideInInspector] public StreamWriter streamWriterEventLog;
+    [HideInInspector] public StreamWriter streamWriterMovingObjects;
+    [HideInInspector] public List<StreamWriter> customLogStreamWriters;
+
     // ----------------------------------------------------------------------------------------------------------------
     // Program initialization and run update
     // ----------------------------------------------------------------------------------------------------------------
@@ -140,6 +151,7 @@ public class PathScript : MonoBehaviour
         customLogNames = new List<string>();
         customLogBuffers = new List<string>();
         customLogCounters = new List<int>();
+        customLogStreamWriters = new List<StreamWriter>();
 
         //to have a standardized decimal separator across different system locales
         //usage: someNumber.ToString(numberFormat)
@@ -158,14 +170,14 @@ public class PathScript : MonoBehaviour
     void Update()
     {
         //multiple keys can be (un)pressed in a single frame
-        if (Input.GetKeyDown("up"))    { logControllerData("up",    true);  }
-        if (Input.GetKeyDown("down"))  { logControllerData("down",  true);  }
-        if (Input.GetKeyDown("left"))  { logControllerData("left",  true);  }
-        if (Input.GetKeyDown("right")) { logControllerData("right", true);  }
-        if (Input.GetKeyUp("up"))      { logControllerData("up",    false); }
-        if (Input.GetKeyUp("down"))    { logControllerData("down",  false); }
-        if (Input.GetKeyUp("left"))    { logControllerData("left",  false); }
-        if (Input.GetKeyUp("right"))   { logControllerData("right", false); }
+        if (Input.GetKeyDown("up")) { logControllerData("up", true); }
+        if (Input.GetKeyDown("down")) { logControllerData("down", true); }
+        if (Input.GetKeyDown("left")) { logControllerData("left", true); }
+        if (Input.GetKeyDown("right")) { logControllerData("right", true); }
+        if (Input.GetKeyUp("up")) { logControllerData("up", false); }
+        if (Input.GetKeyUp("down")) { logControllerData("down", false); }
+        if (Input.GetKeyUp("left")) { logControllerData("left", false); }
+        if (Input.GetKeyUp("right")) { logControllerData("right", false); }
         //other, special keys
         if (allowSpecialKeys)
         {
@@ -197,86 +209,92 @@ public class PathScript : MonoBehaviour
         this.collisionFileName = @saveLocation + datasetPrefix + "_" + "collision" + fileNameTime + ".txt";
         this.controllerFileName = @saveLocation + datasetPrefix + "_" + "controller" + fileNameTime + ".txt";
         this.eventLogFileName = @saveLocation + datasetPrefix + "_" + "eventlog" + fileNameTime + ".txt";
-        this.movingObjectsFileName  = @saveLocation + datasetPrefix + "_" + "movingObj" + fileNameTime + ".txt";
+        this.movingObjectsFileName = @saveLocation + datasetPrefix + "_" + "movingObj" + fileNameTime + ".txt";
 
         //append the first row to files to indicate variable names, if specified
-        if (includeVariableNames)
+        if (includeVariableNames && verifyLoggingDirectory())
         {
             if (logMovement)
             {
                 System.IO.File.Create(pathFileName).Dispose();
                 System.IO.File.AppendAllText(pathFileName,
                     "userId" + separatorItem + "logId" + separatorItem + "timestamp" + separatorItem +
-                    "hour" + separatorItem + "min" + separatorItem +"sec" + separatorItem +"ms" + separatorItem +
+                    "hour" + separatorItem + "min" + separatorItem + "sec" + separatorItem + "ms" + separatorItem +
                     "xpos" + separatorItem + "ypos" + separatorItem + "zpos" + separatorItem +
                     "uMousePos" + separatorItem + "vMousePos" + separatorItem + "wMousePos" + separatorItem +
                     "uGazePos" + separatorItem + "vGazePos" + separatorItem + "wGazePos" +
                     "\r\n");
+                streamWriterMovement = new StreamWriter(pathFileName, true);
             }
             if (logCollisions)
             {
                 System.IO.File.Create(collisionFileName).Dispose();
                 System.IO.File.AppendAllText(collisionFileName,
                     "userId" + separatorItem + "logId" + separatorItem + "timestamp" + separatorItem +
-                    "hour" + separatorItem + "min" + separatorItem + "sec" + separatorItem +"ms" + separatorItem +
+                    "hour" + separatorItem + "min" + separatorItem + "sec" + separatorItem + "ms" + separatorItem +
                     "xpos" + separatorItem + "ypos" + separatorItem + "zpos" + separatorItem +
                     "uMousePos" + separatorItem + "vMousePos" + separatorItem + "wMousePos" + separatorItem +
                     "uGazePos" + separatorItem + "vGazePos" + separatorItem + "wGazePos" + separatorItem +
                     "objectName" + separatorItem + "xobj" + separatorItem + "yobj" + separatorItem + "zobj" +
                     "\r\n");
+                streamWriterCollisions = new StreamWriter(collisionFileName, true);
             }
             if (logController)
             {
                 System.IO.File.Create(controllerFileName).Dispose();
                 System.IO.File.AppendAllText(controllerFileName,
                     "userId" + separatorItem + "logId" + separatorItem + "timestamp" + separatorItem +
-                    "hour" + separatorItem + "min" + separatorItem + "sec" + separatorItem +"ms" + separatorItem +
+                    "hour" + separatorItem + "min" + separatorItem + "sec" + separatorItem + "ms" + separatorItem +
                     "xpos" + separatorItem + "ypos" + separatorItem + "zpos" + separatorItem +
                     "xangle" + separatorItem + "yangle" + separatorItem + "zangle" + separatorItem +
                     "xrot" + separatorItem + "yrot" + separatorItem + "zrot" + separatorItem +
                     "keyPressed" + separatorItem + "isDown" + separatorItem + "keyDirection" +
                     "\r\n");
+                streamWriterController = new StreamWriter(controllerFileName, true);
             }
             if (logEyeTracking)
             {
                 System.IO.File.Create(etFileName).Dispose();
                 System.IO.File.AppendAllText(etFileName,
                     "userId" + separatorItem + "logId" + separatorItem + "timestamp" + separatorItem +
-                    "hour" + separatorItem + "min" + separatorItem + "sec" + separatorItem +"ms" + separatorItem +
+                    "hour" + separatorItem + "min" + separatorItem + "sec" + separatorItem + "ms" + separatorItem +
                     "xpos" + separatorItem + "ypos" + separatorItem + "zpos" + separatorItem +
                     "uMousePos" + separatorItem + "vMousePos" + separatorItem + "wMousePos" + separatorItem +
                     "uGazePos" + separatorItem + "vGazePos" + separatorItem + "wGazePos" + separatorItem +
                     "objName" + separatorItem + "objFocusType" + separatorItem +
                     "xobj" + separatorItem + "yobj" + separatorItem + "zobj" +
                     "\r\n");
+                streamWriterEyeTracking = new StreamWriter(etFileName, true);
             }
             if (logEyeTracking2)
             {
                 System.IO.File.Create(et2FileName).Dispose();
                 System.IO.File.AppendAllText(etFileName,
                     "userId" + separatorItem + "logId" + separatorItem + "timestamp" + separatorItem +
-                    "hour" + separatorItem + "min" + separatorItem + "sec" + separatorItem +"ms" + separatorItem +
+                    "hour" + separatorItem + "min" + separatorItem + "sec" + separatorItem + "ms" + separatorItem +
                     "xpos" + separatorItem + "ypos" + separatorItem + "zpos" + separatorItem +
                     "uMousePos" + separatorItem + "vMousePos" + separatorItem + "wMousePos" + separatorItem +
                     "uGazePos" + separatorItem + "vGazePos" + separatorItem + "wGazePos" + separatorItem +
                     "xobj" + separatorItem + "yobj" + separatorItem + "zobj" +
                     "\r\n");
+                streamWriterEyeTracking2 = new StreamWriter(et2FileName, true);
             }
             if (eventLog)
             {
                 System.IO.File.Create(eventLogFileName).Dispose();
                 System.IO.File.AppendAllText(eventLogFileName,
                     "userId" + separatorItem + "logId" + separatorItem + "timestamp" + separatorItem +
-                    "hour" + separatorItem + "min" + separatorItem + "sec" + separatorItem +"ms" + separatorItem +
+                    "hour" + separatorItem + "min" + separatorItem + "sec" + separatorItem + "ms" + separatorItem +
                     "eventInfo" +
                     "\r\n");
+                streamWriterEventLog = new StreamWriter(eventLogFileName, true);
             }
             if (logMovingObjects)
             {
                 System.IO.File.Create(movingObjectsFileName).Dispose();
                 System.IO.File.AppendAllText(movingObjectsFileName,
                     "userId" + separatorItem + "logId" + separatorItem + "timestamp" + separatorItem +
-                    "hour" + separatorItem + "min" + separatorItem + "sec" + separatorItem +"ms" + separatorItem +
+                    "hour" + separatorItem + "min" + separatorItem + "sec" + separatorItem + "ms" + separatorItem +
                     "objName" + separatorItem +
                     "xobj" + separatorItem + "yobj" + separatorItem + "zobj" + separatorItem +
                     "xobjRot" + separatorItem + "yobjRot" + separatorItem + "zobjRot" +
@@ -284,12 +302,17 @@ public class PathScript : MonoBehaviour
                     separatorItem + "xpos" + separatorItem + "ypos" + separatorItem + "zpos" +
                     //-------------------------------------------------------------------------------------------
                     "\r\n");
+                streamWriterMovingObjects = new StreamWriter(movingObjectsFileName, true);
             }
+        }
+        else
+        {
+            Debug.LogWarning("Log file creation faled.");
         }
     }
 
     //generate file names for custom loggers (if allowed)
-        //if not allowed, return false so that the external logger doesn't send junk data
+    //if not allowed, return false so that the external logger doesn't send junk data
     public bool generateCustomFileNames(string customLogVariables, string logName, string callerName)
     {
         //input verification
@@ -304,11 +327,16 @@ public class PathScript : MonoBehaviour
             Debug.LogWarning("Object " + callerName + " tried to create custom log with no name.");
             return false;
         }
+        else if (!verifyLoggingDirectory())
+        {
+            Debug.LogWarning("Log file creation faled.");
+            return false;
+        }
         //file creation
         else
         {
             //custom log names/fileNames/buffers have to be created simultaneously, so that they retain the same [i]
-                //this is loose coupling of two Lists, as oppposed to List<Hashtable<string, string>>
+            //this is loose coupling of two Lists, as oppposed to List<Hashtable<string, string>>
             customLogNames.Add(logName);
             customLogFileNames.Add(@saveLocation + datasetPrefix + "_" + logName + fileNameTime + ".txt");
             customLogBuffers.Add("");
@@ -316,8 +344,24 @@ public class PathScript : MonoBehaviour
             System.IO.File.Create(customLogFileNames[customLogFileNames.Count - 1]).Dispose();
             if (customLogVariables != "")
             {
+                customLogVariables = "userId" + separatorItem + "logId" + separatorItem + "timestamp" + separatorItem +
+                                     "hour" + separatorItem + "min" + separatorItem + "sec" + separatorItem +
+                                     "ms" + separatorItem +
+                                     //////////////////////////////////////////////////////////////////////////////////
+                                     //TODO: implement a unified log requesting feature
+                                     //////////////////////////////////////////////////////////////////////////////////                                    
+                                     "xpos" + separatorItem + "ypos" + separatorItem + "zpos" + separatorItem +
+                                     "uMousePos" + separatorItem + "vMousePos" + separatorItem +
+                                                                   "wMousePos" + separatorItem +
+                                     "uGazePos" + separatorItem + "vGazePos" + separatorItem +
+                                                                  "wGazePos" + separatorItem +
+                                     //////////////////////////////////////////////////////////////////////////////////
+                                     //TODO: implement a unified log requesting feature
+                                     //////////////////////////////////////////////////////////////////////////////////  
+                                     customLogVariables + "\r\n";
                 System.IO.File.AppendAllText(customLogFileNames[customLogFileNames.Count - 1], customLogVariables);
             }
+            customLogStreamWriters.Add(new StreamWriter(customLogFileNames[customLogNames.IndexOf(logName)]));
             return true;
         }
     }
@@ -347,9 +391,10 @@ public class PathScript : MonoBehaviour
             pathBuffer += currentData;
             if (pathCounter % bufferSize == 0)
             {
-                System.IO.File.AppendAllText(pathFileName, pathBuffer);
+                //System.IO.File.AppendAllText(pathFileName, pathBuffer);
+                streamWriterMovement.Write(currentData);
                 pathBuffer = "";
-                Debug.Log("PathScript emptied a buffer of " + bufferSize + " items @" + Time.time);
+                //Debug.Log("PathScript emptied a buffer of " + bufferSize + " items @" + Time.time);
             }
 
             pathCounter++;
@@ -386,7 +431,8 @@ public class PathScript : MonoBehaviour
             movingObjectsBuffer += dataPerCycle;
             if (movingObjectsCounter % bufferSize == 0)
             {
-                System.IO.File.AppendAllText(movingObjectsFileName, movingObjectsBuffer);
+                //System.IO.File.AppendAllText(movingObjectsFileName, movingObjectsBuffer);
+                streamWriterMovingObjects.Write(movingObjectsBuffer);
                 movingObjectsBuffer = "";
                 Debug.Log("PathScript emptied a buffer of " + bufferSize + " moving object items @" + Time.time);
             }
@@ -403,18 +449,19 @@ public class PathScript : MonoBehaviour
         {
             //necessary precondition, as continuous logging of gaze being kept on an object is not wanted here
             //if (etLastFocusType != objFocusType) {
-                //get rid of extra brackets, if present
-                objCoordinates = cleanNumericData(objCoordinates);
-                string currentData = fileNameTime + separatorItem + etCounter + separatorItem +
-                                     GetCurrentTimestamp() + separatorItem + GetCurrentTime() + separatorItem +
-                                     GetCurrentPosition() + separatorItem +
-                                     objName + separatorItem +
-                                     objFocusType + separatorItem +
-                                     objCoordinates +
-                                     "\r\n";
-                System.IO.File.AppendAllText(etFileName, currentData);
-                etCounter++;
-                etLastFocusType = objFocusType;
+            //get rid of extra brackets, if present
+            objCoordinates = cleanNumericData(objCoordinates);
+            string currentData = fileNameTime + separatorItem + etCounter + separatorItem +
+                                 GetCurrentTimestamp() + separatorItem + GetCurrentTime() + separatorItem +
+                                 GetCurrentPosition() + separatorItem +
+                                 objName + separatorItem +
+                                 objFocusType + separatorItem +
+                                 objCoordinates +
+                                 "\r\n";
+            //System.IO.File.AppendAllText(etFileName, currentData);
+            streamWriterEyeTracking.Write(currentData);
+            etCounter++;
+            etLastFocusType = objFocusType;
             //}
         }
     }
@@ -443,13 +490,14 @@ public class PathScript : MonoBehaviour
             etBuffer += currentData;
             if (etCounter % bufferSize == 0)
             {
-                System.IO.File.AppendAllText(etFileName, etBuffer);
+                //System.IO.File.AppendAllText(etFileName, etBuffer);
+                streamWriterEyeTracking2.Write(etBuffer);
                 etBuffer = "";
             }
             etCounter++;
         }
     }
-    
+
     //external collision logger, as reported from a script attached to a GameObject with Collider.isTrigger = true;
     public void logCollisionData(string objName, string objCoordinates)
     {
@@ -465,7 +513,8 @@ public class PathScript : MonoBehaviour
                                      objName + separatorItem +
                                      objCoordinates +
                                      "\r\n";
-                System.IO.File.AppendAllText(collisionFileName, currentData);
+                //System.IO.File.AppendAllText(collisionFileName, currentData);
+                streamWriterCollisions.Write(currentData);
                 collisionCounter++;
                 collisionLastObject = objName;
             }
@@ -479,8 +528,8 @@ public class PathScript : MonoBehaviour
         if (logController)
         {
             //keyPress direction logic
-            if (keyPress == "up" && !isPressedDown)    { isPressedUp = !isPressedUp; }
-            if (keyPress == "down" && !isPressedUp)    { isPressedDown = !isPressedDown; }
+            if (keyPress == "up" && !isPressedDown) { isPressedUp = !isPressedUp; }
+            if (keyPress == "down" && !isPressedUp) { isPressedDown = !isPressedDown; }
             if (keyPress == "left" && !isPressedRight) { isPressedLeft = !isPressedLeft; }
             if (keyPress == "right" && !isPressedLeft) { isPressedRight = !isPressedRight; }
 
@@ -531,6 +580,7 @@ public class PathScript : MonoBehaviour
             }
 
             //logging
+            //this is certainly not buffered, as there can be just a few keys pressed thru runtime
             string currentData = fileNameTime + separatorItem + controllerCounter + separatorItem +
                                  GetCurrentTimestamp() + separatorItem + GetCurrentTime() + separatorItem +
                                  GetCurrentPosition() + separatorItem +
@@ -538,7 +588,8 @@ public class PathScript : MonoBehaviour
                                  isDown + separatorItem +
                                  keyDirection +
                                  "\r\n";
-            System.IO.File.AppendAllText(controllerFileName, currentData);
+            //System.IO.File.AppendAllText(controllerFileName, currentData);
+            streamWriterController.Write(currentData);
             controllerCounter++;
         }
     }
@@ -556,14 +607,15 @@ public class PathScript : MonoBehaviour
                                  GetCurrentTimestamp() + separatorItem + GetCurrentTime() + separatorItem +
                                  eventInfo +
                                  "\r\n";
-            System.IO.File.AppendAllText(eventLogFileName, currentData);
+            //System.IO.File.AppendAllText(eventLogFileName, currentData);
+            streamWriterEventLog.Write(currentData);
             eventLogCounter++;
         }
     }
 
     //external pre-specified data logger with dedicated log file to it; can be multiple files, has to specify which one
     //format validity is up to the external script
-    public bool logCustomData(string logName, string customData)
+    public bool logCustomData(string logName, string customData, GameObject loggedObject = null)
     {
         //verify if log file exists
         int targettedCustomLogId = 0;
@@ -578,6 +630,13 @@ public class PathScript : MonoBehaviour
             string currentData = fileNameTime + separatorItem +
                                  customLogCounters[targettedCustomLogId] + separatorItem +
                                  GetCurrentTimestamp() + separatorItem + GetCurrentTime() + separatorItem +
+                                 //////////////////////////////////////////////////////////////////////////////////
+                                 //TODO: implement a unified log requesting feature
+                                 //////////////////////////////////////////////////////////////////////////////////
+                                 GetCurrentPosition(loggedObject) + separatorItem +
+                                 //////////////////////////////////////////////////////////////////////////////////
+                                 //TODO: implement a unified log requesting feature
+                                 //////////////////////////////////////////////////////////////////////////////////
                                  customData +
                                  "\r\n";
 
@@ -585,8 +644,13 @@ public class PathScript : MonoBehaviour
             customLogBuffers[targettedCustomLogId] += currentData;
             if (customLogCounters[targettedCustomLogId] % bufferSize == 0)
             {
-                System.IO.File.AppendAllText(customLogFileNames[targettedCustomLogId],
-                                             customLogBuffers[targettedCustomLogId]);
+                //System.IO.File.AppendAllText(customLogFileNames[targettedCustomLogId],
+                //                             customLogBuffers[targettedCustomLogId]);
+
+                //file writes are handled by streamwriter now -- faster than File.AppenAllText
+                //      File.AppenAllText open a file, writes to it, and closes
+                //      StreamWriter just writes...
+                customLogStreamWriters[targettedCustomLogId].Write(customLogBuffers[targettedCustomLogId]);
                 customLogBuffers[targettedCustomLogId] = "";
             }
             customLogCounters[targettedCustomLogId]++;
@@ -613,18 +677,21 @@ public class PathScript : MonoBehaviour
     }
 
     // Get current player position and look direction
-    string GetCurrentPosition()
+    string GetCurrentPosition(GameObject loggedObject = null)
     {
+        //if no object to track specified, assume itself
+        if (loggedObject == null) loggedObject = this.gameObject;
+
         //string coordinates = transform.position.ToString().Trim('(', ')');
-        string coordinates = transform.position.x.ToString(numberFormat) + separatorItem +
-                             transform.position.y.ToString(numberFormat) + separatorItem +
-                             transform.position.z.ToString(numberFormat);
+        string coordinates = loggedObject.transform.position.x.ToString(numberFormat) + separatorItem +
+                             loggedObject.transform.position.y.ToString(numberFormat) + separatorItem +
+                             loggedObject.transform.position.z.ToString(numberFormat);
         //player mouse center, player gaze center (VR only)
         //transform.rotation -- in radians; transform.rotation.eulerAngles -- in degrees
         //string rotationMouse = transform.rotation.eulerAngles.ToString().Trim('(', ')');
-        string rotationMouse = transform.rotation.eulerAngles.x.ToString(numberFormat) + separatorItem +
-                               transform.rotation.eulerAngles.y.ToString(numberFormat) + separatorItem +
-                               transform.rotation.eulerAngles.z.ToString(numberFormat);
+        string rotationMouse = loggedObject.transform.rotation.eulerAngles.x.ToString(numberFormat) + separatorItem +
+                               loggedObject.transform.rotation.eulerAngles.y.ToString(numberFormat) + separatorItem +
+                               loggedObject.transform.rotation.eulerAngles.z.ToString(numberFormat);
         //string rotationGaze = headCamera.transform.rotation.eulerAngles.ToString().Trim('(', ')');
         string rotationGaze = headCamera.transform.rotation.eulerAngles.x.ToString(numberFormat) + separatorItem +
                               headCamera.transform.rotation.eulerAngles.y.ToString(numberFormat) + separatorItem +
@@ -660,5 +727,26 @@ public class PathScript : MonoBehaviour
         formatDictionary.Add("decimalFormat", separatorDecimal);
         formatDictionary.Add("separatorFormat", separatorItem);
         return formatDictionary;
+    }
+
+    //verify if logging directory exists
+    public bool verifyLoggingDirectory()
+    {
+        if (Directory.Exists(saveLocation))
+        {
+            return true;
+        }
+        else 
+        {
+            try
+            {
+                Directory.CreateDirectory(saveLocation);
+            }
+            catch (IOException e)
+            {
+                return false;
+            }
+            return true;
+        }
     }
 }
